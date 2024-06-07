@@ -147,7 +147,7 @@ def on_button_click():
     if response:
         response_text, user_command = response
         response_label.config(text=f"You said: {user_command}\nResponse: {response_text}")
-        speak(response_text)
+        # speak(response_text)
 
 def listen_continuously():
     while True:
@@ -159,7 +159,7 @@ def listen_continuously():
             if response:
                 response_text, user_command = response
                 response_label.config(text=f"You said: {user_command}\nResponse: {response_text}")
-                speak(response_text)
+                # speak(response_text)
 
 # Create the main window
 root = tk.Tk()
