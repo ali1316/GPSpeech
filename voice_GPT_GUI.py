@@ -11,6 +11,7 @@ from langchain.chat_models import AzureChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import pyttsx3
+from tkinter import ttk
 
 # Load environment variables
 _ = load_dotenv(find_dotenv())
@@ -168,17 +169,28 @@ def listen_continuously():
 root = tk.Tk()
 root.title("Speech Assistant")
 
+# Set custom font and styles
+font_style = ("black", 12)
+bg_color = "#f0f0f0"  # Light gray background color
+fg_color = "#333333"  # Dark gray text color
+
+# Configure root window
+root.configure(bg=bg_color)
+
 # Create and place a button in the window
-run_button = tk.Button(root, text="Run Assistant", command=on_button_click)
+run_button = ttk.Button(root, text="Run Assistant", command=on_button_click, style='Run.TButton')
 run_button.pack(pady=20)
 
 # Create and place a label to display the response
-response_label = tk.Label(root, text="", wraplength=400)
+response_label = ttk.Label(root, text="", wraplength=400, style='Response.TLabel')
 response_label.pack(pady=20)
 
-# Start a thread to listen for the wake word continuously
-listening_thread = threading.Thread(target=listen_continuously, daemon=True)
-listening_thread.start()
+# Define custom styles
+style = ttk.Style()
+style.configure('Run.TButton', font=font_style, background="#007bff", foreground="white")
+style.map('Run.TButton', background=[('active', '#0056b3')])  # Darker blue on button click
+
+style.configure('Response.TLabel', font=font_style, background=bg_color, foreground=fg_color)
 
 # Run the Tkinter event loop
 root.mainloop()
