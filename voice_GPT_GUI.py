@@ -1,9 +1,6 @@
 import torch
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
-import librosa
 import tkinter as tk
-import threading
-# import speech_recognition as sr
 import os
 import subprocess
 from dotenv import load_dotenv, find_dotenv
@@ -71,9 +68,6 @@ def transcribe_audio(audio):
         transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)
         return transcription[0]
 
-# recognizer = sr.Recognizer()
-# microphone = sr.Microphone()
-
 WAKE_WORD = "hey bro"
 
 # Initialize text-to-speech engine
@@ -116,7 +110,6 @@ def run_app():
     if command:
         print("\n\n\n\n\n\n\n\n")
         print(f"You said: { command }")
-        # print(f"{command}, { command == ' open calculator.' }")
         print("\n\n\n\n\n\n\n\n")
 
         # commands:
@@ -129,12 +122,6 @@ def run_app():
         elif command == " open cmd.":
             print("opening CMD")
             subprocess.call('cmd.exe')
-        # elif command == "open anki":
-        #     print("opening Anki")
-        #     subprocess.call('D://Anki//anki.exe')
-        # elif command == "open zoom":
-        #     print("opening Zoom")
-        #     subprocess.call('C://Users//Ahmed//AppData//Roaming//Zoom//bin//Zoom.exe')
 
         # gpt QnA
         else:
@@ -187,7 +174,7 @@ response_label.pack(pady=20)
 
 # Define custom styles
 style = ttk.Style()
-style.configure('Run.TButton', font=font_style, background="#007bff", foreground="white")
+style.configure('Run.TButton', font=font_style, background="#007bff", foreground="black")
 style.map('Run.TButton', background=[('active', '#0056b3')])  # Darker blue on button click
 
 style.configure('Response.TLabel', font=font_style, background=bg_color, foreground=fg_color)
