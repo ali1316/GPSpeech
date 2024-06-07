@@ -1,10 +1,13 @@
-import speech_recognition as sr
+import torch
+from transformers import WhisperProcessor, WhisperForConditionalGeneration
+import librosa
 import os
 import subprocess
 from dotenv import load_dotenv, find_dotenv
 from langchain.chat_models import AzureChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
+
 _ = load_dotenv(find_dotenv())
 
 def ConnectToAzure():
@@ -43,77 +46,90 @@ def ConversationInput():
     )
 
     conversation = LLMChain(
-    llm=ConnectToAzure(),
-    prompt=prompt,
-    verbose=False,
+        llm=ConnectToAzure(),
+        prompt=prompt,
+        verbose=False,
     )
     return conversation
 
+# Load the fine-tuned Whisper model and processor
+model_name = "openai/whisper-small"
+processor = WhisperProcessor.from_pretrained(model_name, language="en", task="transcribe")
+model = WhisperForConditionalGeneration.from_pretrained(model_name)
+
+def transcribe_audio(audio):
+    # Process the audio to create mel-spectrogram features
+    inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
+    print(f"Input features shape: {inputs['input_features'].shape}")
+
+    # Perform inference
+    with torch.no_grad():
+        generated_ids = model.generate(**inputs)
+        # Decode the generated ids to transcription
+        transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)
+        return transcription[0]
+
 WAKE_WORD = "hey bro"
 
-recognizer = sr.Recognizer()
-microphone = sr.Microphone()
-
 def listen_for_wakeword():
-  """Listens for the wake word only"""
-  with microphone as source:
+    """Listens for the wake word only"""
     print("Say 'hey bro' so I can assist you...")
-    audio = recognizer.listen(source, phrase_time_limit=5)  # Limit listening time  
-  
-  try:
-    text = recognizer.recognize_google(audio).lower()  # Convert to lowercase
+    audio = record_audio(5)  # Record for 5 seconds
+    text = transcribe_audio(audio).lower()  # Convert to lowercase
     if text.startswith(WAKE_WORD):
-      return text
+        return text
     else:
-      return None
-  except sr.UnknownValueError:
-    return None  # Ignore unrecognizable audio
+        return None
 
 def listen_after_wakeword():
-  """Listens and recognizes speech after wake word"""
-  with microphone as source:
+    """Listens and recognizes speech after wake word"""
     print("Talk bro what do you want...")
-    audio = recognizer.listen(source)
-  
-  try:
-    text = recognizer.recognize_google(audio)
+    audio = record_audio(10)  # Record for 10 seconds
+    text = transcribe_audio(audio)
     return text.lower()
-  
-  except sr.UnknownValueError:
-    print("Sorry, could not understand audio")
-    return None
+
+def record_audio(duration, samplerate=16000):
+    import sounddevice as sd
+    import numpy as np
+    
+    print("Recording...")
+    recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='float32')
+    sd.wait()  # Wait until the recording is finished
+    print("Recording finished.")
+    recording = recording.flatten()
+    return recording
 
 def run_app():
-  text = listen_for_wakeword()
-  if text:
-    print("Hey! I'm awake.")
-    after_wakeword = listen_after_wakeword()
-    print("You said: " + after_wakeword)
-    
-    #commands:
-    if after_wakeword == "open calculator":
-      print("opening calculator")
-      subprocess.call('calc.exe')
-    elif after_wakeword == "open notepad":
-      print("opening notepad")
-      subprocess.call('notepad.exe')
-    elif after_wakeword == "open cmd":
-      print("opening CMD")
-      subprocess.call('cmd.exe')
-    elif after_wakeword == "open anki":
-      print("opening Anki")
-      subprocess.call('D://Anki//anki.exe')
-    elif after_wakeword == "open zoom":
-      print("opening Zoom")
-      subprocess.call('C://Users//Ahmed//AppData//Roaming//Zoom//bin//Zoom.exe')
+    text = listen_for_wakeword()
+    if text:
+        print("Hey! I'm awake.")
+        after_wakeword = listen_after_wakeword()
+        print("You said: " + after_wakeword)
+        
+        #commands:
+        if after_wakeword == "open calculator":
+            print("opening calculator")
+            subprocess.call('calc.exe')
+        elif after_wakeword == "open notepad":
+            print("opening notepad")
+            subprocess.call('notepad.exe')
+        elif after_wakeword == "open cmd":
+            print("opening CMD")
+            subprocess.call('cmd.exe')
+        # elif after_wakeword == "open anki":
+        #   print("opening Anki")
+        #   subprocess.call('D://Anki//anki.exe')
+        # elif after_wakeword == "open zoom":
+        #   print("opening Zoom")
+        #   subprocess.call('C://Users//Ahmed//AppData//Roaming//Zoom//bin//Zoom.exe')
 
-    #gpt QnA
-    elif after_wakeword:
-      print("Processing...")
-      
-      conversation = ConversationInput()
-      response = conversation.predict(input = after_wakeword)
-      
-      print("Response: ", response)
+        #gpt QnA
+        elif after_wakeword:
+            print("Processing...")
+            
+            conversation = ConversationInput()
+            response = conversation.predict(input = after_wakeword)
+            
+            print("Response: ", response)
 
 run_app()

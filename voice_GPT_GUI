@@ -1,6 +1,9 @@
+import torch
+from transformers import WhisperProcessor, WhisperForConditionalGeneration
+import librosa
 import tkinter as tk
 import threading
-import speech_recognition as sr
+# import speech_recognition as sr
 import os
 import subprocess
 from dotenv import load_dotenv, find_dotenv
@@ -50,8 +53,25 @@ def ConversationInput():
     )
     return conversation
 
-recognizer = sr.Recognizer()
-microphone = sr.Microphone()
+# Load the fine-tuned Whisper model and processor
+model_name = "openai/whisper-small"
+processor = WhisperProcessor.from_pretrained(model_name, language="en", task="transcribe")
+model = WhisperForConditionalGeneration.from_pretrained(model_name)
+
+def transcribe_audio(audio):
+    # Process the audio to create mel-spectrogram features
+    inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
+    print(f"Input features shape: {inputs['input_features'].shape}")
+
+    # Perform inference
+    with torch.no_grad():
+        generated_ids = model.generate(**inputs)
+        # Decode the generated ids to transcription
+        transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)
+        return transcription[0]
+
+# recognizer = sr.Recognizer()
+# microphone = sr.Microphone()
 
 WAKE_WORD = "hey bro"
 
@@ -62,33 +82,33 @@ def speak(text):
     engine.say(text)
     engine.runAndWait()
 
+def record_audio(duration, samplerate=16000):
+    import sounddevice as sd
+    import numpy as np
+    
+    print("Recording...")
+    recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='float32')
+    sd.wait()  # Wait until the recording is finished
+    print("Recording finished.")
+    recording = recording.flatten()
+    return recording
+
 def listen_for_wakeword():
     """Listens for the wake word only"""
-    with microphone as source:
-        print("Say 'hey bro' so I can assist you...")
-        audio = recognizer.listen(source, phrase_time_limit=5)  # Limit listening time
-
-    try:
-        text = recognizer.recognize_google(audio).lower()  # Convert to lowercase
-        if text.startswith(WAKE_WORD):
-            return text
-        else:
-            return None
-    except sr.UnknownValueError:
-        return None  # Ignore unrecognizable audio
+    print("Say 'hey bro' so I can assist you...")
+    audio = record_audio(5)  # Record for 5 seconds
+    text = transcribe_audio(audio).lower()  # Convert to lowercase
+    if text.startswith(WAKE_WORD):
+        return text
+    else:
+        return None
 
 def listen_for_command():
     """Listens and recognizes speech for a command"""
-    with microphone as source:
-        print("Talk bro, what do you want...")
-        audio = recognizer.listen(source)
-
-    try:
-        text = recognizer.recognize_google(audio)
-        return text.lower()
-    except sr.UnknownValueError:
-        print("Sorry, could not understand audio")
-        return None
+    print("Talk bro, what do you want...")
+    audio = record_audio(10)  # Record for 10 seconds
+    text = transcribe_audio(audio)
+    return text.lower()
 
 def run_app():
     command = listen_for_command()
@@ -105,12 +125,12 @@ def run_app():
         elif command == "open cmd":
             print("opening CMD")
             subprocess.call('cmd.exe')
-        elif command == "open anki":
-            print("opening Anki")
-            subprocess.call('D://Anki//anki.exe')
-        elif command == "open zoom":
-            print("opening Zoom")
-            subprocess.call('C://Users//Ahmed//AppData//Roaming//Zoom//bin//Zoom.exe')
+        # elif command == "open anki":
+        #     print("opening Anki")
+        #     subprocess.call('D://Anki//anki.exe')
+        # elif command == "open zoom":
+        #     print("opening Zoom")
+        #     subprocess.call('C://Users//Ahmed//AppData//Roaming//Zoom//bin//Zoom.exe')
 
         # gpt QnA
         else:
