@@ -1,0 +1,161 @@
+import tkinter as tk
+import threading
+import speech_recognition as sr
+import os
+import subprocess
+from dotenv import load_dotenv, find_dotenv
+from langchain.chat_models import AzureChatOpenAI
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+import pyttsx3
+
+# Load environment variables
+_ = load_dotenv(find_dotenv())
+
+def ConnectToAzure():
+    """
+    Function connects to langchain AzureOpenAI
+    """
+    OPENAI_API_TYPE = os.getenv("OPENAI_API_TYPE")
+    OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
+    OPENAI_API_VERSION = os.getenv("OPENAI_API_VERSION")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    DEPLOYMENT_NAME = os.getenv("DEPLOYMENT_NAME")
+
+    model = AzureChatOpenAI(
+        openai_api_base=OPENAI_API_BASE,
+        openai_api_version=OPENAI_API_VERSION,
+        azure_deployment=DEPLOYMENT_NAME,
+        openai_api_key=OPENAI_API_KEY,
+        openai_api_type=OPENAI_API_TYPE,
+    )
+    return model
+
+def ConversationInput():
+    _DEFAULT_TEMPLATE = """
+    You are a helpful speech assistant that answers all the human's questions.
+    
+    Current conversation:
+    New human question: {input}
+    Response:"""
+
+    prompt = PromptTemplate(
+        input_variables=["input"], template=_DEFAULT_TEMPLATE
+    )
+
+    conversation = LLMChain(
+        llm=ConnectToAzure(),
+        prompt=prompt,
+        verbose=False,
+    )
+    return conversation
+
+recognizer = sr.Recognizer()
+microphone = sr.Microphone()
+
+WAKE_WORD = "hey bro"
+
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
+
+def speak(text):
+    engine.say(text)
+    engine.runAndWait()
+
+def listen_for_wakeword():
+    """Listens for the wake word only"""
+    with microphone as source:
+        print("Say 'hey bro' so I can assist you...")
+        audio = recognizer.listen(source, phrase_time_limit=5)  # Limit listening time
+
+    try:
+        text = recognizer.recognize_google(audio).lower()  # Convert to lowercase
+        if text.startswith(WAKE_WORD):
+            return text
+        else:
+            return None
+    except sr.UnknownValueError:
+        return None  # Ignore unrecognizable audio
+
+def listen_for_command():
+    """Listens and recognizes speech for a command"""
+    with microphone as source:
+        print("Talk bro, what do you want...")
+        audio = recognizer.listen(source)
+
+    try:
+        text = recognizer.recognize_google(audio)
+        return text.lower()
+    except sr.UnknownValueError:
+        print("Sorry, could not understand audio")
+        return None
+
+def run_app():
+    command = listen_for_command()
+    if command:
+        print("You said: " + command)
+
+        # commands:
+        if command == "open calculator":
+            print("opening calculator")
+            subprocess.call('calc.exe')
+        elif command == "open notepad":
+            print("opening notepad")
+            subprocess.call('notepad.exe')
+        elif command == "open cmd":
+            print("opening CMD")
+            subprocess.call('cmd.exe')
+        elif command == "open anki":
+            print("opening Anki")
+            subprocess.call('D://Anki//anki.exe')
+        elif command == "open zoom":
+            print("opening Zoom")
+            subprocess.call('C://Users//Ahmed//AppData//Roaming//Zoom//bin//Zoom.exe')
+
+        # gpt QnA
+        else:
+            print("Processing...")
+            conversation = ConversationInput()
+            response = conversation.predict(input=command)
+            print("Response: ", response)
+            return response, command
+
+def on_button_click():
+    response_label.config(text="Talk bro, what do you want...")
+    root.update()  # Update the GUI to show the message immediately
+    response = run_app()
+    if response:
+        response_text, user_command = response
+        response_label.config(text=f"You said: {user_command}\nResponse: {response_text}")
+        speak(response_text)
+
+def listen_continuously():
+    while True:
+        wakeword = listen_for_wakeword()
+        if wakeword:
+            response_label.config(text="Talk bro, what do you want...")
+            root.update()  # Update the GUI to show the message immediately
+            response = run_app()
+            if response:
+                response_text, user_command = response
+                response_label.config(text=f"You said: {user_command}\nResponse: {response_text}")
+                speak(response_text)
+
+# Create the main window
+root = tk.Tk()
+root.title("Speech Assistant")
+
+# Create and place a button in the window
+run_button = tk.Button(root, text="Run Assistant", command=on_button_click)
+run_button.pack(pady=20)
+
+# Create and place a label to display the response
+response_label = tk.Label(root, text="", wraplength=400)
+response_label.pack(pady=20)
+
+# Start a thread to listen for the wake word continuously
+listening_thread = threading.Thread(target=listen_continuously, daemon=True)
+listening_thread.start()
+
+# Run the Tkinter event loop
+root.mainloop()
