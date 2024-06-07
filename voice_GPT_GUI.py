@@ -113,16 +113,19 @@ def listen_for_command():
 def run_app():
     command = listen_for_command()
     if command:
-        print("You said: " + command)
+        print("\n\n\n\n\n\n\n\n")
+        print(f"You said: { command }")
+        # print(f"{command}, { command == ' open calculator.' }")
+        print("\n\n\n\n\n\n\n\n")
 
         # commands:
-        if command == "open calculator":
+        if command == " open calculator.":
             print("opening calculator")
             subprocess.call('calc.exe')
-        elif command == "open notepad":
+        elif command == " open notepad.":
             print("opening notepad")
             subprocess.call('notepad.exe')
-        elif command == "open cmd":
+        elif command == " open cmd.":
             print("opening CMD")
             subprocess.call('cmd.exe')
         # elif command == "open anki":
