@@ -35,6 +35,10 @@ def ConnectToAzure():
 def ConversationInput():
     _DEFAULT_TEMPLATE = """
     You are a helpful speech assistant that answers all the human's questions.
+    If the user ask any question related to calculator, return "open calculator." only/
+    and if the user ask any question related to notepad, return "open notepad." only/
+    and if the user ask any question related to cmd, return "open cmd." only/
+    else return the question answer 
     
     Current conversation:
     New human question: {input}
@@ -52,7 +56,7 @@ def ConversationInput():
     return conversation
 
 # Load the fine-tuned Whisper model and processor
-model_name = "openai/whisper-small"
+model_name = "tonybegemy/whisper_small_finetunedenglish_speechfinal"
 processor = WhisperProcessor.from_pretrained(model_name, language="en", task="transcribe")
 model = WhisperForConditionalGeneration.from_pretrained(model_name)
 
@@ -112,22 +116,22 @@ def run_app():
         print(f"You said: { command }")
         print("\n\n\n\n\n\n\n\n")
 
+        conversation = ConversationInput()
+        response = conversation.predict(input=command)
         # commands:
-        if command == " open calculator.":
+        if response == "open calculator.":
             print("opening calculator")
             subprocess.call('calc.exe')
-        elif command == " open notepad.":
+        elif response == "open notepad.":
             print("opening notepad")
             subprocess.call('notepad.exe')
-        elif command == " open cmd.":
-            print("opening CMD")
+        elif response == "open cmd.":
+            print("opening notepad.")
             subprocess.call('cmd.exe')
 
         # gpt QnA
         else:
             print("Processing...")
-            conversation = ConversationInput()
-            response = conversation.predict(input=command)
             print("Response: ", response)
             return response, command
 
