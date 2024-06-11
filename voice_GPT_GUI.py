@@ -13,6 +13,7 @@ from datasets import load_dataset
 import soundfile as sf
 import sounddevice as sd
 import torch
+import speech_recognition as sr
 
 # Load environment variables
 _ = load_dotenv(find_dotenv())
@@ -109,6 +110,23 @@ def listen_for_wakeword():
         return text
     else:
         return None
+    
+def detect_wake_word():
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Say 'hey bro' to start...")
+        while True:
+            audio = recognizer.listen(source)
+            try:
+                phrase = recognizer.recognize_google(audio)
+                if "hey bro" in phrase.lower():
+                    print("Wake word detected! Opening mic...")
+                    break  # Exit loop after detecting wake word and processing command
+            except sr.UnknownValueError:
+                print("Listening for wake word...")
+            except sr.RequestError as e:
+                print(f"Could not request results; {e}")
+
 
 def listen_for_command():
     """Listens and recognizes speech for a command"""
@@ -160,6 +178,7 @@ def run_app():
             return response, command
 
 def on_button_click():
+    detect_wake_word()
     response_label.config(text="Talk bro, what do you want...")
     root.update()  # Update the GUI to show the message immediately
     response = run_app()
