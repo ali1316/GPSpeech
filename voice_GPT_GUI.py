@@ -1,5 +1,5 @@
 import torch
-from transformers import WhisperProcessor, WhisperForConditionalGeneration
+from transformers import WhisperProcessor, WhisperForConditionalGeneration, pipeline
 import tkinter as tk
 import os
 import subprocess
@@ -9,6 +9,10 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import pyttsx3
 from tkinter import ttk
+from datasets import load_dataset
+import soundfile as sf
+import sounddevice as sd
+import torch
 
 # Load environment variables
 _ = load_dotenv(find_dotenv())
@@ -35,10 +39,11 @@ def ConnectToAzure():
 def ConversationInput():
     _DEFAULT_TEMPLATE = """
     You are a helpful speech assistant that answers all the human's questions.
-    If the user ask any question related to calculator, return "open calculator." only/
-    and if the user ask any question related to notepad, return "open notepad." only/
-    and if the user ask any question related to cmd, return "open cmd." only/
-    else return the question answer 
+    only we have three cases that you will answer as I say. if the question not from those cases , answer it as you answer any question basically.
+    If the user ask any question related to calculator, return "open calculator." only/.
+    and if the user ask any question related to notepad, return "open notepad." only/.
+    and if the user ask any question related to cmd, return "open cmd." only/.
+
     
     Current conversation:
     New human question: {input}
@@ -59,6 +64,9 @@ def ConversationInput():
 model_name = "tonybegemy/whisper_small_finetunedenglish_speechfinal"
 processor = WhisperProcessor.from_pretrained(model_name, language="en", task="transcribe")
 model = WhisperForConditionalGeneration.from_pretrained(model_name)
+synthesiser = pipeline("text-to-speech", "microsoft/speecht5_tts")
+embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+speaker_embedding = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0)
 
 def transcribe_audio(audio):
     # Process the audio to create mel-spectrogram features
@@ -109,6 +117,15 @@ def listen_for_command():
     text = transcribe_audio(audio)
     return text.lower()
 
+def speech_to_text(text):
+    speech = synthesiser(text, forward_params={"speaker_embeddings": speaker_embedding})
+    sf.write("speech.wav", speech["audio"], samplerate=speech["sampling_rate"])
+    data, samplerate = sf.read('speech.wav')
+    # Play the audio
+    sd.play(data, samplerate)
+    # Wait until the audio is finished playing
+    sd.wait()
+
 def run_app():
     command = listen_for_command()
     if command:
@@ -120,19 +137,26 @@ def run_app():
         response = conversation.predict(input=command)
         # commands:
         if response == "open calculator.":
-            print("opening calculator")
+            calc = "opening calculator"
+            print(calc)
+            speech_to_text(calc)
             subprocess.call('calc.exe')
         elif response == "open notepad.":
-            print("opening notepad")
+            notepad = "opening notepad"
+            print(notepad)
+            speech_to_text(notepad)
             subprocess.call('notepad.exe')
         elif response == "open cmd.":
-            print("opening notepad.")
+            cmd = 'opening c m d.'
+            print(cmd)
+            speech_to_text(cmd)
             subprocess.call('cmd.exe')
 
         # gpt QnA
         else:
             print("Processing...")
             print("Response: ", response)
+            speech_to_text(response)
             return response, command
 
 def on_button_click():
